@@ -54,12 +54,11 @@ app.registerExtension({
         };
     },
     async setup() {
-        const getCanvasMenuOptions = LGraphCanvas.prototype.getCanvasMenuOptions;
-        LGraphCanvas.prototype.getCanvasMenuOptions = function (...args) {
-            const options = getCanvasMenuOptions.apply(this, [...args]);
+        // Use new context menu API instead of monkey-patching
+        app.canvasMenuExtensions = app.canvasMenuExtensions || [];
+        app.canvasMenuExtensions.push((canvas, options) => {
             showQueueNodesMenuIfOutputNodesAreSelected(options);
             showQueueGroupNodesMenuIfGroupIsSelected(options);
-            return options;
-        };
+        });
     },
 });
