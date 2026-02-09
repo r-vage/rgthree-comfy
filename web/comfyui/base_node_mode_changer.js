@@ -9,8 +9,6 @@ export class BaseNodeModeChanger extends BaseAnyInputConnectedNode {
         this.modeOn = -1;
         this.modeOff = -1;
         this.properties["toggleRestriction"] = "default";
-        this._lastModeCheckTime = 0;
-        this._modeCheckInterval = 1000; // Check once per second - humans won't notice the delay
     }
     onConstructed() {
         wait(10).then(() => {
@@ -20,29 +18,6 @@ export class BaseNodeModeChanger extends BaseAnyInputConnectedNode {
         });
         this.addOutput("OPT_CONNECTION", "*");
         return super.onConstructed();
-    }
-    onDrawForeground(ctx) {
-        // Only check once per second to minimize overhead
-        const now = Date.now();
-        if (now - this._lastModeCheckTime < this._modeCheckInterval) {
-            return;
-        }
-        this._lastModeCheckTime = now;
-        
-        // Check linked nodes for mode changes (e.g., from group bypass)
-        const linkedNodes = getConnectedInputNodesAndFilterPassThroughs(this);
-        if (!this.widgets || !linkedNodes) return;
-        
-        for (let i = 0; i < Math.min(this.widgets.length, linkedNodes.length); i++) {
-            const widget = this.widgets[i];
-            const linkedNode = linkedNodes[i];
-            if (!linkedNode || !widget) continue;
-            
-            const expectedValue = linkedNode.mode === this.modeOn;
-            if (widget.value !== expectedValue) {
-                widget.value = expectedValue;
-            }
-        }
     }
     handleLinkedNodesStabilization(linkedNodes) {
         let changed = false;
@@ -55,6 +30,8 @@ export class BaseNodeModeChanger extends BaseAnyInputConnectedNode {
             }
             if (node) {
                 changed = this.setWidget(widget, node) || changed;
+                // Hook into the node's mode property to detect changes
+                this._setupModeChangeHook(node, widget, index);
             }
         }
         if (this.widgets && this.widgets.length > linkedNodes.length) {
@@ -62,6 +39,62 @@ export class BaseNodeModeChanger extends BaseAnyInputConnectedNode {
             changed = true;
         }
         return changed;
+    }
+    _setupModeChangeHook(linkedNode, widget, index) {
+        // Skip if already hooked
+        if (linkedNode._rgthreeModeHooked) return;
+        
+        // Store original mode value
+        let currentMode = linkedNode.mode;
+        
+        // Override mode property with getter/setter
+        Object.defineProperty(linkedNode, 'mode', {
+            get() {
+                return currentMode;
+            },
+            set(newMode) {
+                const oldMode = currentMode;
+                currentMode = newMode;
+                
+                // Call the node's onModeChange callback if it exists (for repeaters/relays)
+                if (oldMode !== newMode && typeof linkedNode.onModeChange === 'function') {
+                    linkedNode.onModeChange(oldMode, newMode);
+                }
+                
+                // Notify all Fast Bypasser/Muter nodes watching this node
+                if (oldMode !== newMode && linkedNode._rgthreeModeWatchers) {
+                    for (const watcher of linkedNode._rgthreeModeWatchers) {
+                        watcher.onLinkedNodeModeChanged(linkedNode, newMode);
+                    }
+                }
+            },
+            configurable: true,
+            enumerable: true
+        });
+        
+        linkedNode._rgthreeModeHooked = true;
+        
+        // Register this node as a watcher
+        if (!linkedNode._rgthreeModeWatchers) {
+            linkedNode._rgthreeModeWatchers = [];
+        }
+        if (!linkedNode._rgthreeModeWatchers.includes(this)) {
+            linkedNode._rgthreeModeWatchers.push(this);
+        }
+    }
+    onLinkedNodeModeChanged(linkedNode, newMode) {
+        // Find the widget for this linked node and update it immediately
+        const linkedNodes = getConnectedInputNodesAndFilterPassThroughs(this);
+        const index = linkedNodes.indexOf(linkedNode);
+        
+        if (index >= 0 && this.widgets && this.widgets[index]) {
+            const widget = this.widgets[index];
+            const expectedValue = newMode === this.modeOn;
+            if (widget.value !== expectedValue) {
+                widget.value = expectedValue;
+                this.setDirtyCanvas(true, false);
+            }
+        }
     }
     setWidget(widget, linkedNode, forceValue) {
         let changed = false;
