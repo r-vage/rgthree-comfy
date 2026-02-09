@@ -97,7 +97,7 @@ class RgthreePowerLoraLoader extends RgthreeBaseServerNode {
                 const loras = (lorasDetails || [])
                     .filter((l) => l && l.file)
                     .map((l) => l.file);
-                showLoraChooser(event, (value) => {
+                showLoraChooser(event, (value, _options, leafEvent) => {
                     var _b;
                     if (typeof value === "string") {
                         if (value.includes("Power Lora Chooser")) {
@@ -110,10 +110,25 @@ class RgthreePowerLoraLoader extends RgthreeBaseServerNode {
                             this.setDirtyCanvas(true, true);
                         }
                     }
+                    return leafEvent.shiftKey;
                 }, null, [...loras]);
             });
             return true;
         }));
+    }
+    getExtraMenuOptions(canvas, options) {
+        var _b;
+        (_b = super.getExtraMenuOptions) === null || _b === void 0 ? void 0 : _b.call(this, canvas, options);
+        options.unshift({
+            content: "Fetch info for all LoRAs",
+            callback: () => {
+                for (const widget of this.widgets) {
+                    if (widget instanceof PowerLoraLoaderWidget && widget.loraName) {
+                        LORA_INFO_SERVICE.fetchInfo(widget.loraName, { forceFetch: true });
+                    }
+                }
+            },
+        }, null);
     }
     getSlotInPosition(canvasX, canvasY) {
         var _b;
