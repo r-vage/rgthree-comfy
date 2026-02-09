@@ -1,5 +1,5 @@
 import { BaseAnyInputConnectedNode } from "./base_any_input_connected_node.js";
-import { changeModeOfNodes, PassThroughFollowing } from "./utils.js";
+import { changeModeOfNodes, PassThroughFollowing, getConnectedInputNodesAndFilterPassThroughs } from "./utils.js";
 import { wait } from "../../rgthree/common/shared_utils.js";
 export class BaseNodeModeChanger extends BaseAnyInputConnectedNode {
     constructor(title) {
@@ -9,6 +9,8 @@ export class BaseNodeModeChanger extends BaseAnyInputConnectedNode {
         this.modeOn = -1;
         this.modeOff = -1;
         this.properties["toggleRestriction"] = "default";
+        this._lastModeCheckTime = 0;
+        this._modeCheckInterval = 100; // Check every 100ms instead of every frame
     }
     onConstructed() {
         wait(10).then(() => {
@@ -18,6 +20,29 @@ export class BaseNodeModeChanger extends BaseAnyInputConnectedNode {
         });
         this.addOutput("OPT_CONNECTION", "*");
         return super.onConstructed();
+    }
+    onDrawForeground(ctx) {
+        // Only check periodically to avoid excessive polling
+        const now = Date.now();
+        if (now - this._lastModeCheckTime < this._modeCheckInterval) {
+            return;
+        }
+        this._lastModeCheckTime = now;
+        
+        // Check linked nodes for mode changes (e.g., from group bypass)
+        const linkedNodes = getConnectedInputNodesAndFilterPassThroughs(this);
+        if (!this.widgets || !linkedNodes) return;
+        
+        for (let i = 0; i < Math.min(this.widgets.length, linkedNodes.length); i++) {
+            const widget = this.widgets[i];
+            const linkedNode = linkedNodes[i];
+            if (!linkedNode || !widget) continue;
+            
+            const expectedValue = linkedNode.mode === this.modeOn;
+            if (widget.value !== expectedValue) {
+                widget.value = expectedValue;
+            }
+        }
     }
     handleLinkedNodesStabilization(linkedNodes) {
         let changed = false;
