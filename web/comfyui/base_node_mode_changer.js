@@ -10,7 +10,7 @@ export class BaseNodeModeChanger extends BaseAnyInputConnectedNode {
         this.modeOff = -1;
         this.properties["toggleRestriction"] = "default";
         this._lastModeCheckTime = 0;
-        this._modeCheckInterval = 100; // Check every 100ms instead of every frame
+        this._modeCheckInterval = 1000; // Check once per second - humans won't notice the delay
     }
     onConstructed() {
         wait(10).then(() => {
@@ -22,7 +22,7 @@ export class BaseNodeModeChanger extends BaseAnyInputConnectedNode {
         return super.onConstructed();
     }
     onDrawForeground(ctx) {
-        // Only check periodically to avoid excessive polling
+        // Only check once per second to minimize overhead
         const now = Date.now();
         if (now - this._lastModeCheckTime < this._modeCheckInterval) {
             return;
