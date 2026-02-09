@@ -6,7 +6,7 @@ license = { file = "LICENSE" }
 dependencies = []
 
 [project.urls]
-Repository = "https://github.com/r-vage/rgthree-comfy"
+Repository = "https://github.com/rgthree/rgthree-comfy"
 
 [tool.comfy]
 PublisherId = "rgthree"
