@@ -1,12 +1,12 @@
 [project]
 name = "rgthree-comfy"
 description = "Making ComfyUI more comfortable."
-version = "1.0.2512112053"
+version = "1.1.0"
 license = { file = "LICENSE" }
 dependencies = []
 
 [project.urls]
-Repository = "https://github.com/rgthree/rgthree-comfy"
+Repository = "https://github.com/r-vage/rgthree-comfy"
 
 [tool.comfy]
 PublisherId = "rgthree"
