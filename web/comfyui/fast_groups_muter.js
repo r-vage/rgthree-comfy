@@ -343,8 +343,12 @@ class FastGroupsToggleRowWidget extends RgthreeBaseWidget {
     set toggled(value) {
         this.value.toggled = value;
     }
+    getWidgetBool(widget) {
+        return widget.toggled ?? widget.value;
+    }
     toggle(value) {
-        value = value == null ? !this.toggled : value;
+        const currentValue = this.getWidgetBool(this);
+        value = value == null ? !currentValue : value;
         if (value !== this.toggled) {
             this.value.toggled = value;
             this.doModeChange();
